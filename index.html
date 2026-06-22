@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Análisis Pre-partido</title>
+<style>
+  :root {
+    --bg: #0f1117; --bg2: #181c27; --bg3: #1e2335;
+    --border: #2a2f45; --text: #e8eaf2; --muted: #6b7394;
+    --accent: #3b82f6; --home: #60a5fa; --away: #f87171;
+    --win: #4ade80; --draw: #fbbf24; --loss: #f87171;
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); min-height: 100vh; }
+  .wrap { max-width: 800px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+  header { margin-bottom: 2rem; }
+  header h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; margin-bottom: 4px; }
+  header p { font-size: 13px; color: var(--muted); }
+  .card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem; }
+  .card label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; display: block; margin-bottom: 6px; }
+  input[type=password], input[type=text] {
+    width: 100%; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text); font-size: 14px; padding: 9px 12px; outline: none; font-family: var(--font); transition: border-color 0.15s;
+  }
+  input:focus { border-color: var(--accent); }
+  input::placeholder { color: var(--muted); }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 8px; line-height: 1.5; }
+  .hint a { color: var(--accent); text-decoration: none; }
+  .gender-row { display: flex; gap: 8px; margin-bottom: 10px; }
+  .gbtn { flex: 1; padding: 8px; background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; color: var(--muted); font-size: 13px; cursor: pointer; font-family: var(--font); transition: all 0.15s; }
+  .gbtn:hover { border-color: var(--accent); color: var(--text); }
+  .gbtn.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  .match-row { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
+  .match-row input { flex: 1; }
+  .vs { font-size: 13px; color: var(--muted); }
+  .league-row { margin-bottom: 10px; }
+  .league-row select { width: 100%; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 14px; padding: 9px 12px; outline: none; font-family: var(--font); cursor: pointer; }
+  .league-row select:focus { border-color: var(--accent); }
+  .btn-analyze { background: var(--accent); color: #fff; border: none; border-radius: 8px; padding: 10px 24px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: var(--font); transition: opacity 0.15s; }
+  .btn-analyze:hover { opacity: 0.88; }
+  .btn-analyze:disabled { opacity: 0.4; cursor: not-allowed; }
+  .note { font-size: 12px; color: var(--muted); margin-top: 8px; line-height: 1.5; }
+  #status { font-size: 13px; margin: 10px 0; min-height: 20px; }
+  #status.loading { color: var(--accent); }
+  #status.error { color: var(--loss); }
+  #status.ok { color: var(--win); }
+  .dot { display: inline-block; animation: blink 1.2s infinite; }
+  .dot:nth-child(2) { animation-delay: 0.2s; }
+  .dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes blink { 0%,80%,100%{opacity:0} 40%{opacity:1} }
+  .progress-log { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .log-line { font-size: 13px; color: var(--muted); margin-bottom: 3px; padding-left: 16px; position: relative; }
+  .log-line::before { content: '·'; position: absolute; left: 0; font-size: 18px; line-height: 1; top: -2px; }
+  .log-line.done { color: var(--win); }
+  .log-line.done::before { content: '✓'; font-size: 12px; top: 1px; }
+  .log-line.active { color: var(--accent); }
+  #results { display: none; }
+  #results.show { display: block; }
+  .sdiv { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin: 1.5rem 0 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+  .match-header { display: flex; align-items: center; justify-content: center; gap: 1.5rem; padding: 1.5rem; background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; }
+  .tlabel { flex: 1; text-align: center; }
+  .tlabel .name { font-size: 18px; font-weight: 700; }
+  .tlabel.home .name { color: var(--home); }
+  .tlabel.away .name { color: var(--away); }
+  .tlabel .meta { font-size: 11px; color: var(--muted); margin-top: 3px; }
+  .vsbadge { font-size: 12px; color: var(--muted); background: var(--bg3); border: 1px solid var(--border); padding: 5px 14px; border-radius: 20px; font-weight: 700; }
+  .corners-panel { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: center; background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem 1.25rem; }
+  .cstat { text-align: center; }
+  .cstat .num { font-size: 38px; font-weight: 800; letter-spacing: -0.03em; }
+  .cstat.home .num { color: var(--home); }
+  .cstat.away .num { color: var(--away); }
+  .cstat .lbl { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .cstat .games { font-size: 11px; color: var(--muted); margin-top: 1px; }
+  .ctotal { text-align: center; }
+  .ctotal .num { font-size: 26px; font-weight: 700; color: var(--text); display: block; }
+  .ctotal .lbl { font-size: 11px; color: var(--muted); }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .form-col { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.25rem; }
+  .form-col .tn { font-size: 11px; color: var(--muted); margin-bottom: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; }
+  .badges { display: flex; gap: 5px; flex-wrap: wrap; }
+  .badge { width: 30px; height: 30px; border-radius: 50%; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+  .badge.W { background: rgba(74,222,128,0.12); color: var(--win); }
+  .badge.D { background: rgba(251,191,36,0.12); color: var(--draw); }
+  .badge.L { background: rgba(248,113,113,0.12); color: var(--loss); }
+  .stats-panel { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; }
+  .legend { display: flex; gap: 16px; margin-bottom: 14px; }
+  .li { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); }
+  .ld { width: 8px; height: 8px; border-radius: 50%; }
+  .ld.h { background: var(--home); }
+  .ld.a { background: var(--away); }
+  .bar-row { margin-bottom: 12px; }
+  .bar-row:last-child { margin-bottom: 0; }
+  .bar-lbl { font-size: 13px; color: var(--text); margin-bottom: 5px; }
+  .bar-track { height: 6px; background: var(--bg3); border-radius: 3px; display: flex; overflow: hidden; }
+  .bar-h { height: 6px; background: var(--home); transition: width 0.5s ease; }
+  .bar-a { height: 6px; background: var(--away); transition: width 0.5s ease; }
+  .bar-vals { display: flex; justify-content: space-between; font-size: 12px; margin-top: 4px; }
+  .bar-vals .hv { color: var(--home); font-weight: 600; }
+  .bar-vals .av { color: var(--away); font-weight: 600; }
+  .h2h-panel { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; }
+  table { width: 100%; border-collapse: collapse; }
+  thead th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); font-weight: 600; padding: 0 0 10px; text-align: left; border-bottom: 1px solid var(--border); }
+  tbody td { padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text); }
+  tbody tr:last-child td { border-bottom: none; }
+  .rb { display: inline-block; padding: 2px 8px; border-radius: 5px; font-size: 12px; font-weight: 600; }
+  .rb.hw { background: rgba(96,165,250,0.15); color: var(--home); }
+  .rb.aw { background: rgba(248,113,113,0.15); color: var(--away); }
+  .rb.dr { background: rgba(251,191,36,0.15); color: var(--draw); }
+  .cbadge { background: var(--bg3); border: 1px solid var(--border); border-radius: 5px; padding: 2px 8px; font-size: 12px; color: var(--muted); }
+  .summary-panel { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; }
+  .summary-panel h3 { font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--text); }
+  .summary-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .summary-row:last-child { border-bottom: none; }
+  .summary-row .label { color: var(--muted); }
+  .summary-row .values { display: flex; gap: 24px; }
+  .summary-row .hv { color: var(--home); font-weight: 600; min-width: 48px; text-align: right; }
+  .summary-row .av { color: var(--away); font-weight: 600; min-width: 48px; text-align: right; }
+  .copy-btn { background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; color: var(--muted); font-size: 12px; padding: 6px 14px; cursor: pointer; font-family: var(--font); margin-top: 12px; transition: all 0.15s; }
+  .copy-btn:hover { border-color: var(--accent); color: var(--text); }
+  @media(max-width:520px){
+    .corners-panel{gap:8px;padding:1rem;}
+    .cstat .num{font-size:28px;}
+    .form-grid{grid-template-columns:1fr;}
+    .match-header{gap:0.75rem;padding:1rem;}
+    .tlabel .name{font-size:15px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>⚽ Análisis pre-partido</h1>
+    <p>Corners reales · Forma · H2H · Estadísticas — vía API-Football</p>
+  </header>
+
+  <div class="card">
+    <label>API Key — API-Football</label>
+    <input type="password" id="apiKey" placeholder="Tu key de dashboard.api-football.com..." />
+    <div class="hint">Regístrate gratis en <a href="https://dashboard.api-football.com/register" target="_blank">dashboard.api-football.com</a> → Account → My Access · 100 llamadas/día gratis.</div>
+  </div>
+
+  <div class="card">
+    <label>Género</label>
+    <div class="gender-row">
+      <button class="gbtn active" id="gM" onclick="setG('M')">Masculino</button>
+      <button class="gbtn" id="gF" onclick="setG('F')">Femenino</button>
+    </div>
+    <label>Liga / Competición</label>
+    <div class="league-row">
+      <select id="leagueId">
+        <option value="140">La Liga (España)</option>
+        <option value="141">Segunda División</option>
+        <option value="39">Premier League</option>
+        <option value="78">Bundesliga</option>
+        <option value="135">Serie A</option>
+        <option value="61">Ligue 1</option>
+        <option value="2">Champions League</option>
+        <option value="3">Europa League</option>
+        <option value="4">Europa Conference League</option>
+        <option value="1">World Cup</option>
+        <option value="5">UEFA Nations League</option>
+        <option value="10">Friendlies (selecciones)</option>
+        <option value="667">Friendlies (clubes)</option>
+      </select>
+    </div>
+    <label style="margin-top:10px;">Partido</label>
+    <div class="match-row">
+      <input type="text" id="hTeam" placeholder="Equipo local (ej: France)" />
+      <span class="vs">vs</span>
+      <input type="text" id="aTeam" placeholder="Equipo visitante (ej: Iraq)" />
+    </div>
+    <button class="btn-analyze" id="btn" onclick="run()">Analizar partido →</button>
+    <div class="note">Nombres en inglés: "France", "Iraq", "Spain", "Real Madrid". Si no encuentra el equipo prueba variantes del nombre oficial.</div>
+  </div>
+
+  <div id="status"></div>
+  <div id="progressLog"></div>
+
+  <div id="results">
+    <div class="match-header">
+      <div class="tlabel home">
+        <div class="name" id="hName">—</div>
+        <div class="meta" id="hMeta"></div>
+      </div>
+      <div class="vsbadge">VS</div>
+      <div class="tlabel away">
+        <div class="name" id="aName">—</div>
+        <div class="meta" id="aMeta"></div>
+      </div>
+    </div>
+
+    <div class="sdiv">Corners · media real últimos partidos</div>
+    <div class="corners-panel">
+      <div class="cstat home">
+        <div class="num" id="hCV">—</div>
+        <div class="lbl" id="hCN">Local</div>
+        <div class="games" id="hCG"></div>
+      </div>
+      <div class="ctotal">
+        <span class="num" id="cTot">—</span>
+        <div class="lbl">total esperado</div>
+      </div>
+      <div class="cstat away">
+        <div class="num" id="aCV">—</div>
+        <div class="lbl" id="aCN">Visitante</div>
+        <div class="games" id="aCG"></div>
+      </div>
+    </div>
+
+    <div class="sdiv">Forma reciente · últimos 5</div>
+    <div class="form-grid">
+      <div class="form-col"><div class="tn" id="hFL">Local</div><div class="badges" id="hForm"></div></div>
+      <div class="form-col"><div class="tn" id="aFL">Visitante</div><div class="badges" id="aForm"></div></div>
+    </div>
+
+    <div class="sdiv">Estadísticas comparativas</div>
+    <div class="stats-panel">
+      <div class="legend">
+        <div class="li"><div class="ld h"></div><span id="hLeg">Local</span></div>
+        <div class="li"><div class="ld a"></div><span id="aLeg">Visitante</span></div>
+      </div>
+      <div id="bars"></div>
+    </div>
+
+    <div class="sdiv">Head to head · últimos 5</div>
+    <div class="h2h-panel">
+      <table>
+        <thead><tr><th>Fecha</th><th>Partido</th><th>Resultado</th><th>Corners</th></tr></thead>
+        <tbody id="h2hBody"></tbody>
+      </table>
+    </div>
+
+    <div class="sdiv">Resumen para análisis IA</div>
+    <div class="summary-panel">
+      <h3>📋 Datos del partido — copia esto en Claude para el análisis</h3>
+      <div id="summaryRows"></div>
+      <button class="copy-btn" onclick="copyData()">📋 Copiar datos para Claude</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const BASE = 'https://v3.football.api-sports.io';
+const SEASON = 2024;
+let gender = 'M';
+let logItems = [];
+let analysisData = {};
+
+function setG(g) {
+  gender = g;
+  document.getElementById('gM').className = 'gbtn' + (g==='M'?' active':'');
+  document.getElementById('gF').className = 'gbtn' + (g==='F'?' active':'');
+}
+
+function key() { return document.getElementById('apiKey').value.trim(); }
+function s(id, txt) { const el=document.getElementById(id); if(el) el.textContent=txt; }
+
+function st(msg, type='') {
+  const el = document.getElementById('status');
+  el.className = 'status ' + type;
+  el.innerHTML = type==='loading'
+    ? `<span class="dot">●</span> <span class="dot">●</span> <span class="dot">●</span> ${msg}`
+    : msg;
+}
+
+function log(msg, state='active') {
+  logItems.push({msg, state});
+  renderLog();
+  return logItems.length - 1;
+}
+function logDone(idx) { if(logItems[idx]) logItems[idx].state='done'; renderLog(); }
+function clearLog() { logItems=[]; renderLog(); }
+function renderLog() {
+  const el = document.getElementById('progressLog');
+  if (!logItems.length) { el.innerHTML=''; return; }
+  el.innerHTML = `<div class="progress-log">${logItems.map(l=>`<div class="log-line ${l.state}">${l.msg}</div>`).join('')}</div>`;
+}
+
+async function api(path) {
+  const r = await fetch(`${BASE}${path}`, {
+    method: 'GET',
+    headers: { 'x-apisports-key': key() }
+  });
+  if (!r.ok) throw new Error(`HTTP ${r.status} · ${path}`);
+  return r.json();
+}
+
+async function findTeam(name) {
+  const d = await api(`/teams?search=${encodeURIComponent(name)}`);
+  if (!d?.response?.length) return null;
+  const exact = d.response.find(t => t.team.name.toLowerCase() === name.toLowerCase());
+  return exact ? exact.team : d.response[0].team;
+}
+
+async function getFixtures(teamId, leagueId) {
+  const d = await api(`/fixtures?team=${teamId}&league=${leagueId}&season=${SEASON}&last=8&status=FT`);
+  if (d?.response?.length) return d.response;
+  const d2 = await api(`/fixtures?team=${teamId}&last=8&status=FT`);
+  return d2?.response || [];
+}
+
+async function getFixtureStats(fixtureId) {
+  try {
+    const d = await api(`/fixtures/statistics?fixture=${fixtureId}`);
+    return d?.response || [];
+  } catch(e) { return []; }
+}
+
+async function getH2H(t1, t2) {
+  try {
+    const d = await api(`/fixtures/headtohead?h2h=${t1}-${t2}&last=5&status=FT`);
+    return d?.response || [];
+  } catch(e) { return []; }
+}
+
+function extractCorners(statsArr, teamId) {
+  const ts = statsArr.find(s => s.team?.id === teamId);
+  if (!ts) return null;
+  const c = ts.statistics?.find(s => s.type === 'Corner Kicks');
+  if (!c) return null;
+  const v = parseInt(c.value);
+  return isNaN(v) ? null : v;
+}
+
+function getStatVal(statsArr, teamId, type) {
+  const ts = statsArr.find(s => s.team?.id === teamId);
+  if (!ts) return null;
+  const item = ts.statistics?.find(s => s.type === type);
+  if (!item || item.value === null) return null;
+  const v = typeof item.value === 'string' ? parseFloat(item.value.replace('%','')) : parseFloat(item.value);
+  return isNaN(v) ? null : v;
+}
+
+function getResult(fix, teamId) {
+  const hw = fix.teams.home.winner, aw = fix.teams.away.winner;
+  const isHome = fix.teams.home.id === teamId;
+  if (hw === null && aw === null) return 'D';
+  if (isHome) return hw ? 'W' : (aw ? 'L' : 'D');
+  return aw ? 'W' : (hw ? 'L' : 'D');
+}
+
+function avg(arr) { return arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0; }
+
+function renderForm(form, id) {
+  document.getElementById(id).innerHTML = form
+    .filter(r=>r!=='?')
+    .map(r=>`<div class="badge ${r}">${r}</div>`).join('');
+}
+
+function renderBars(hS, aS, hN, aN) {
+  s('hLeg',hN); s('aLeg',aN);
+  const rows = [
+    ['Goles / partido', hS.goals, aS.goals],
+    ['Corners / partido', hS.corners, aS.corners],
+    ['Tiros a puerta / partido', hS.shotsOn, aS.shotsOn],
+    ['Tiros totales / partido', hS.shots, aS.shots],
+    ['Posesión %', hS.possession, aS.possession],
+    ['Faltas / partido', hS.fouls, aS.fouls],
+    ['Tarjetas amarillas', hS.yellows, aS.yellows],
+  ];
+  document.getElementById('bars').innerHTML = rows.map(([lbl,hv,av]) => {
+    hv=parseFloat(hv)||0; av=parseFloat(av)||0;
+    const tot=hv+av||1, hp=Math.round(hv/tot*100);
+    return `<div class="bar-row">
+      <div class="bar-lbl">${lbl}</div>
+      <div class="bar-track"><div class="bar-h" style="width:${hp}%"></div><div class="bar-a" style="width:${100-hp}%"></div></div>
+      <div class="bar-vals"><span class="hv">${hv.toFixed(1)}</span><span class="av">${av.toFixed(1)}</span></div>
+    </div>`;
+  }).join('');
+}
+
+function renderH2H(fixtures) {
+  const tbody = document.getElementById('h2hBody');
+  if (!fixtures.length) {
+    tbody.innerHTML = '<tr><td colspan="4" style="color:#6b7394;padding:8px 0">Sin enfrentamientos previos disponibles</td></tr>';
+    return;
+  }
+  tbody.innerHTML = fixtures.map(f => {
+    const date = f.fixture.date ? new Date(f.fixture.date).toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'2-digit'}) : '—';
+    const hg = f.goals.home ?? '?', ag = f.goals.away ?? '?';
+    const cls = parseInt(hg)>parseInt(ag)?'hw':parseInt(ag)>parseInt(hg)?'aw':'dr';
+    const hc = f._hC!=null?f._hC:'—', ac = f._aC!=null?f._aC:'—';
+    return `<tr>
+      <td>${date}</td>
+      <td style="font-size:12px;color:#9ba3c4">${f.teams.home.name} vs ${f.teams.away.name}</td>
+      <td><span class="rb ${cls}">${hg}-${ag}</span></td>
+      <td><span class="cbadge">${hc}-${ac}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderSummary(data) {
+  const rows = [
+    ['Partido', data.homeTeam, data.awayTeam],
+    ['Corners/partido (real)', data.hCA.toFixed(2), data.aCA.toFixed(2)],
+    ['Corners (partidos)', data.hCorners.join(','), data.aCorners.join(',')],
+    ['Total corners esperado', (data.hCA+data.aCA).toFixed(1), ''],
+    ['Forma reciente', data.hForm.join(' '), data.aForm.join(' ')],
+    ['Goles/partido', data.hS.goals.toFixed(2), data.aS.goals.toFixed(2)],
+    ['Tiros a puerta/partido', data.hS.shotsOn.toFixed(1), data.aS.shotsOn.toFixed(1)],
+    ['Posesión %', data.hS.possession.toFixed(0)+'%', data.aS.possession.toFixed(0)+'%'],
+    ['Faltas/partido', data.hS.fouls.toFixed(1), data.aS.fouls.toFixed(1)],
+    ['H2H', data.h2hStr, ''],
+  ];
+  document.getElementById('summaryRows').innerHTML = rows.map(([lbl,hv,av]) =>
+    `<div class="summary-row">
+      <span class="label">${lbl}</span>
+      <div class="values">
+        <span class="hv">${hv}</span>
+        ${av ? `<span class="av">${av}</span>` : ''}
+      </div>
+    </div>`
+  ).join('');
+}
+
+function copyData() {
+  const d = analysisData;
+  const txt = `Analiza este partido de fútbol:
+
+PARTIDO: ${d.homeTeam} vs ${d.awayTeam}
+
+CORNERS REALES (últimos partidos):
+- ${d.homeTeam}: ${d.hCorners.join(', ')} → promedio ${d.hCA.toFixed(2)}/partido
+- ${d.awayTeam}: ${d.aCorners.join(', ')} → promedio ${d.aCA.toFixed(2)}/partido
+- Total esperado: ${(d.hCA+d.aCA).toFixed(1)} corners
+
+FORMA RECIENTE:
+- ${d.homeTeam}: ${d.hForm.join(' ')}
+- ${d.awayTeam}: ${d.aForm.join(' ')}
+
+ESTADÍSTICAS:
+- Goles/partido: ${d.homeTeam} ${d.hS.goals.toFixed(2)} · ${d.awayTeam} ${d.aS.goals.toFixed(2)}
+- Tiros a puerta: ${d.homeTeam} ${d.hS.shotsOn.toFixed(1)} · ${d.awayTeam} ${d.aS.shotsOn.toFixed(1)}
+- Posesión: ${d.homeTeam} ${d.hS.possession.toFixed(0)}% · ${d.awayTeam} ${d.aS.possession.toFixed(0)}%
+- Faltas: ${d.homeTeam} ${d.hS.fouls.toFixed(1)} · ${d.awayTeam} ${d.aS.fouls.toFixed(1)}
+
+H2H: ${d.h2hStr || 'sin datos'}
+
+Escribe un análisis pre-partido de 3-4 párrafos: corners y estilo ofensivo, forma reciente, tendencia goleadora, conclusión.`;
+
+  navigator.clipboard.writeText(txt).then(() => {
+    const btn = document.querySelector('.copy-btn');
+    btn.textContent = '✓ Copiado';
+    setTimeout(() => btn.textContent = '📋 Copiar datos para Claude', 2000);
+  });
+}
+
+function statsFromFixtures(fixtures, teamId) {
+  const goals=[], shotsOn=[], shots=[], possession=[], fouls=[], yellows=[];
+  for (const f of fixtures) {
+    const isHome = f.teams.home.id === teamId;
+    goals.push(isHome ? (f.goals.home||0) : (f.goals.away||0));
+    if (f._stats) {
+      const get = (type) => getStatVal(f._stats, teamId, type);
+      const so=get('Shots on Goal'); if(so!==null) shotsOn.push(so);
+      const st=get('Total Shots'); if(st!==null) shots.push(st);
+      const po=get('Ball Possession'); if(po!==null) possession.push(po);
+      const fo=get('Fouls'); if(fo!==null) fouls.push(fo);
+      const ye=get('Yellow Cards'); if(ye!==null) yellows.push(ye);
+    }
+  }
+  return {
+    goals: avg(goals), shotsOn: avg(shotsOn), shots: avg(shots),
+    possession: avg(possession), fouls: avg(fouls), yellows: avg(yellows), corners: 0
+  };
+}
+
+async function run() {
+  const hN = document.getElementById('hTeam').value.trim();
+  const aN = document.getElementById('aTeam').value.trim();
+  const leagueId = document.getElementById('leagueId').value;
+  if (!hN||!aN) { st('Introduce los nombres de ambos equipos.','error'); return; }
+  if (!key()) { st('Introduce tu API key para continuar.','error'); return; }
+
+  document.getElementById('btn').disabled = true;
+  document.getElementById('results').className = '';
+  clearLog();
+
+  try {
+    let i = log('Buscando equipos...');
+    st('Buscando equipos...','loading');
+    const [hT, aT] = await Promise.all([findTeam(hN), findTeam(aN)]);
+    if (!hT) throw new Error(`No se encontró "${hN}". Prueba el nombre oficial en inglés.`);
+    if (!aT) throw new Error(`No se encontró "${aN}". Prueba el nombre oficial en inglés.`);
+    logDone(i);
+    log(`${hT.name} (ID ${hT.id}) vs ${aT.name} (ID ${aT.id})`, 'done');
+
+    s('hName',hT.name); s('aName',aT.name);
+    s('hMeta',`ID: ${hT.id}`); s('aMeta',`ID: ${aT.id}`);
+    ['hCN','hFL'].forEach(id=>s(id,hT.name));
+    ['aCN','aFL'].forEach(id=>s(id,aT.name));
+
+    i = log('Cargando partidos y H2H...');
+    st('Cargando partidos...','loading');
+    const [hFix, aFix, h2hFix] = await Promise.all([
+      getFixtures(hT.id, leagueId),
+      getFixtures(aT.id, leagueId),
+      getH2H(hT.id, aT.id)
+    ]);
+    logDone(i);
+    log(`${hFix.length} partidos de ${hT.name} · ${aFix.length} de ${aT.name}`, 'done');
+
+    i = log(`Calculando corners (${Math.min(hFix.length,8)+Math.min(aFix.length,8)} partidos)...`);
+    st('Calculando corners reales...','loading');
+    const hCorners=[], aCorners=[];
+    for (const f of hFix.slice(0,8)) {
+      const stats = await getFixtureStats(f.fixture.id);
+      f._stats = stats;
+      const c = extractCorners(stats, hT.id);
+      if (c!==null) hCorners.push(c);
+    }
+    for (const f of aFix.slice(0,8)) {
+      const stats = await getFixtureStats(f.fixture.id);
+      f._stats = stats;
+      const c = extractCorners(stats, aT.id);
+      if (c!==null) aCorners.push(c);
+    }
+    logDone(i);
+    const hCA=avg(hCorners), aCA=avg(aCorners);
+    log(`${hT.name}: [${hCorners.join(',')||'—'}] avg ${hCA.toFixed(1)}`, 'done');
+    log(`${aT.name}: [${aCorners.join(',')||'—'}] avg ${aCA.toFixed(1)}`, 'done');
+
+    s('hCV', hCA>0?hCA.toFixed(1):'—');
+    s('aCV', aCA>0?aCA.toFixed(1):'—');
+    s('hCG', hCorners.length?`(${hCorners.length} partidos)`:'(sin datos)');
+    s('aCG', aCorners.length?`(${aCorners.length} partidos)`:'(sin datos)');
+    s('cTot', (hCA+aCA)>0?(hCA+aCA).toFixed(1):'—');
+
+    const hForm=hFix.slice(0,5).map(f=>getResult(f,hT.id));
+    const aForm=aFix.slice(0,5).map(f=>getResult(f,aT.id));
+    renderForm(hForm,'hForm'); renderForm(aForm,'aForm');
+
+    const hS=statsFromFixtures(hFix,hT.id); hS.corners=hCA;
+    const aS=statsFromFixtures(aFix,aT.id); aS.corners=aCA;
+    renderBars(hS,aS,hT.name,aT.name);
+
+    i = log('Cargando H2H con corners...');
+    st('Obteniendo H2H...','loading');
+    const h2hWithC = await Promise.all(h2hFix.slice(0,5).map(async f => {
+      const stats = await getFixtureStats(f.fixture.id);
+      return {...f, _hC:extractCorners(stats,f.teams.home.id), _aC:extractCorners(stats,f.teams.away.id)};
+    }));
+    logDone(i);
+    renderH2H(h2hWithC);
+
+    const h2hStr = h2hFix.slice(0,3).map(f=>`${f.teams.home.name} ${f.goals.home??'?'}-${f.goals.away??'?'} ${f.teams.away.name}`).join(' · ');
+
+    analysisData = { homeTeam:hT.name, awayTeam:aT.name, hCorners, aCorners, hCA, aCA, hForm, aForm, hS, aS, h2hStr };
+    renderSummary(analysisData);
+
+    document.getElementById('results').className = 'show';
+    st('Análisis completado ✓ — copia los datos y pégalos en Claude para el análisis narrativo','ok');
+
+  } catch(err) {
+    st(err.message||'Error inesperado. Comprueba tu key y los nombres.','error');
+    console.error(err);
+  }
+
+  document.getElementById('btn').disabled = false;
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key==='Enter' && ['hTeam','aTeam'].includes(document.activeElement?.id)) run();
+});
+</script>
+</body>
+</html>
